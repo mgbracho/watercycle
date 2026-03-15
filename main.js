@@ -602,11 +602,20 @@ const EMIT_VX_SPREAD = 0.6;
 function emitHeatParticles() {
   const { active, x, y } = getHeatSource();
   if (!active) return;
+  let activeCount = particles.filter(p => p.active).length;
+  if (activeCount >= MAX_PARTICLES) {
+    const activeList = particles.filter(p => p.active);
+    activeList.sort((a, b) => b.age - a.age);
+    const toFree = Math.min(EMIT_RATE + 2, activeList.length);
+    for (let i = 0; i < toFree; i++) activeList[i].active = false;
+    activeCount -= toFree;
+  }
   for (let i = 0; i < EMIT_RATE; i++) {
-    if (particles.filter(p => p.active).length >= MAX_PARTICLES) break;
+    if (activeCount >= MAX_PARTICLES) break;
     const vy = EMIT_VY_MIN + Math.random() * (EMIT_VY_MAX - EMIT_VY_MIN);
     const vx = (Math.random() - 0.5) * 2 * EMIT_VX_SPREAD;
     particles.push(createParticle(x, y, vx, vy));
+    activeCount++;
   }
 }
 
