@@ -782,7 +782,8 @@ function update() {
   if (rainHadStarted && cloudDissolveProgress < 1) {
     cloudDissolveProgress = Math.min(1, cloudDissolveProgress + 1 / CLOUD_DISSOLVE_DURATION_FRAMES);
   }
-  if (rainHadStarted && !rainActive && raindrops.length === 0 && cloudDissolveProgress >= 1) {
+  // No auto-reset: cycle only "ends" when everything has faded. Reset when user touches again (or never stopped).
+  if (heat.active && cloudDissolveProgress >= 1) {
     resetCycle();
   }
 }
