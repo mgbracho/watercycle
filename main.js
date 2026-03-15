@@ -626,6 +626,12 @@ function updateHeatParticles() {
       p.active = false;
     }
   }
+  if (cloudDissolveProgress >= PARTICLE_DISSOLVE_END) {
+    const upper = particles.filter(p => p.active && isInUpperZone(p.y));
+    const toRemove = Math.min(12, upper.length);
+    upper.sort((a, b) => b.age - a.age);
+    for (let i = 0; i < toRemove; i++) upper[i].active = false;
+  }
 }
 
 function cleanupHeatParticles() {
