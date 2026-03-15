@@ -194,7 +194,8 @@ let cloudDissolveProgress = 0; // 0 = full cloud, 1 = dissolved; keeps increasin
 const CLOUD_DISSOLVE_DURATION_FRAMES = 240;
 // Order: particles gone by 30%, cloud fades 30–100%, drops/ripples fade 55–100%
 const PARTICLE_DISSOLVE_END = 0.3;   // particles fully gone at 30%
-const DROPS_RIPPLES_FADE_START = 0.55; // drops and ripples fade from 55% to 100%
+// Drops and ripples fade in sync with cloud (same 30–100%) so no rain visible without clouds
+const DROPS_RIPPLES_FADE_START = 0.3;
 
 // Cloud forming sound: low rumble that builds slowly
 let cloudRumbleOsc = null;
@@ -394,7 +395,7 @@ function updateRipples() {
 
 function drawRipples() {
   ctx.save();
-  const ripplesFade = cloudDissolveProgress < DROPS_RIPPLES_FADE_START
+  const ripplesFade = cloudDissolveProgress <= DROPS_RIPPLES_FADE_START
     ? 1
     : 1 - (cloudDissolveProgress - DROPS_RIPPLES_FADE_START) / (1 - DROPS_RIPPLES_FADE_START);
   ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
@@ -457,7 +458,7 @@ function updateRaindrops() {
 function drawRain() {
   if (raindrops.length === 0) return;
   ctx.save();
-  const dropsFade = cloudDissolveProgress < DROPS_RIPPLES_FADE_START
+  const dropsFade = cloudDissolveProgress <= DROPS_RIPPLES_FADE_START
     ? 1
     : 1 - (cloudDissolveProgress - DROPS_RIPPLES_FADE_START) / (1 - DROPS_RIPPLES_FADE_START);
   ctx.strokeStyle = '#ffffff';
