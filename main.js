@@ -187,6 +187,19 @@ function getParticleCountInUpperZone() {
   return particles.filter(p => p.active && isInUpperZone(p.y)).length;
 }
 
+function getUpperZoneXRange() {
+  const upper = particles.filter(p => p.active && isInUpperZone(p.y));
+  if (upper.length === 0) return null;
+  let minX = canvas.width;
+  let maxX = 0;
+  for (const p of upper) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+  }
+  const pad = 80;
+  return { minX: Math.max(0, minX - pad), maxX: Math.min(canvas.width, maxX + pad) };
+}
+
 // Cloud state: 'none' | 'forming' | 'full' (reset to none in Task 28 after rain)
 let cloudState = 'none';
 let cloudFormingFrames = 0;
@@ -343,10 +356,12 @@ function spawnRaindrops() {
   const count = getParticleCountInUpperZone();
   const intensity = RAIN_INTENSITY_MIN + (1 - RAIN_INTENSITY_MIN) * Math.min(1, count / CLOUD_FORMING_THRESHOLD);
   const spawnCount = Math.max(0, Math.round(RAIN_SPAWN_RATE_MAX * intensity));
+  const xRange = getUpperZoneXRange();
+  if (!xRange || xRange.maxX <= xRange.minX) return;
   const { bottom } = getUpperZone();
   for (let i = 0; i < spawnCount; i++) {
     raindrops.push({
-      x: Math.random() * canvas.width,
+      x: xRange.minX + Math.random() * (xRange.maxX - xRange.minX),
       y: bottom,
       vx: (Math.random() - 0.5) * 2 * RAIN_INITIAL_VX_SPREAD,
       vy: RAIN_INITIAL_VY_MIN + Math.random() * (RAIN_INITIAL_VY_MAX - RAIN_INITIAL_VY_MIN),
