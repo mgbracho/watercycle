@@ -689,10 +689,10 @@ function drawCloud() {
 
 // Animated sea: wave phase advances each frame for gentle motion
 let waterPhase = 0;
-const WATER_WAVE_AMPLITUDE = 5;
+const WATER_WAVE_AMPLITUDE = 10;
 const WATER_WAVE_FREQ = 0.012;
 const WATER_WAVE_FREQ2 = 0.025;
-const WATER_WAVE_AMP2 = 2.5;
+const WATER_WAVE_AMP2 = 5;
 
 function drawWaterSurface() {
   const { top, bottom } = getWaterZone();
@@ -715,7 +715,7 @@ function drawWaterSurface() {
   ctx.moveTo(0, bottom);
   ctx.lineTo(0, top);
   for (let x = 0; x <= canvas.width + step; x += step) {
-    const wave = 3 * Math.sin(x * 0.02 + waterPhase * 0.7);
+    const wave = 5 * Math.sin(x * 0.02 + waterPhase * 0.7);
     ctx.lineTo(x, top + wave);
   }
   ctx.lineTo(canvas.width + step, bottom);
