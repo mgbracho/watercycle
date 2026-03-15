@@ -1,0 +1,22 @@
+/* Temperature Painter — Water Cycle */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0a0f1e;
+}
+
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none; /* Prevent page scroll when dragging on canvas */
+}
