@@ -323,23 +323,27 @@ function updateRainSoundGain() {
   rainSoundGain.gain.value = RAIN_GAIN_MIN + t * (RAIN_GAIN_MAX - RAIN_GAIN_MIN);
 }
 
-// Rain: start when cloud is full, spawn from cloud region
+// Rain: start when cloud is full, intensity scales with particles in upper zone (cloud density)
 let rainActive = false;
 const raindrops = [];
-const RAIN_SPAWN_RATE = 2;       // drops per frame
-const RAIN_DURATION_FRAMES = 300; // ~5 sec of spawning then stop
+const RAIN_SPAWN_RATE_MAX = 3;   // max drops per frame at full cloud density
+const RAIN_DURATION_FRAMES = 300;
 let rainDurationFrames = 0;
 let rainHadStarted = false;
 const RAIN_INITIAL_VY_MIN = 4;
 const RAIN_INITIAL_VY_MAX = 7;
 const RAIN_INITIAL_VX_SPREAD = 0.8;
+const RAIN_INTENSITY_MIN = 0.2;  // minimum intensity when few particles (still some rain)
 
 function spawnRaindrops() {
   if (!rainActive) return;
   rainDurationFrames++;
   if (rainDurationFrames >= RAIN_DURATION_FRAMES) rainActive = false;
+  const count = getParticleCountInUpperZone();
+  const intensity = RAIN_INTENSITY_MIN + (1 - RAIN_INTENSITY_MIN) * Math.min(1, count / CLOUD_FORMING_THRESHOLD);
+  const spawnCount = Math.max(0, Math.round(RAIN_SPAWN_RATE_MAX * intensity));
   const { bottom } = getUpperZone();
-  for (let i = 0; i < RAIN_SPAWN_RATE; i++) {
+  for (let i = 0; i < spawnCount; i++) {
     raindrops.push({
       x: Math.random() * canvas.width,
       y: bottom,
