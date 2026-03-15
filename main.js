@@ -594,7 +594,7 @@ function createParticle(x, y, vx, vy) {
   };
 }
 
-const EMIT_RATE = 2; // particles per frame — slower buildup
+const EMIT_RATE = 1; // particles per frame — calm, gradual buildup
 const EMIT_VY_MIN = -3.8;
 const EMIT_VY_MAX = -2.4;
 const EMIT_VX_SPREAD = 0.6;
@@ -605,7 +605,7 @@ function emitHeatParticles() {
   let activeCount = particles.filter(p => p.active).length;
   if (activeCount >= MAX_PARTICLES) {
     const activeList = particles.filter(p => p.active);
-    activeList.sort((a, b) => b.age - a.age);
+    activeList.sort((a, b) => a.age - b.age);
     const toFree = Math.min(EMIT_RATE + 2, activeList.length);
     for (let i = 0; i < toFree; i++) activeList[i].active = false;
     activeCount -= toFree;
