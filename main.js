@@ -190,8 +190,11 @@ function getParticleCountInUpperZone() {
 // Cloud state: 'none' | 'forming' | 'full' (reset to none in Task 28 after rain)
 let cloudState = 'none';
 let cloudFormingFrames = 0;
-let cloudDissolveProgress = 0; // 0 = full cloud, 1 = dissolved; increases while it rains
-const CLOUD_DISSOLVE_DURATION_FRAMES = 270; // ~4.5 sec at 60fps — cloud fades over rain
+let cloudDissolveProgress = 0; // 0 = full cloud, 1 = dissolved; keeps increasing until 1 after rain
+const CLOUD_DISSOLVE_DURATION_FRAMES = 240;
+// Order: particles gone by 30%, cloud fades 30–100%, drops/ripples fade 55–100%
+const PARTICLE_DISSOLVE_END = 0.3;   // particles fully gone at 30%
+const DROPS_RIPPLES_FADE_START = 0.55; // drops and ripples fade from 55% to 100%
 
 // Cloud forming sound: low rumble that builds slowly
 let cloudRumbleOsc = null;
@@ -387,11 +390,14 @@ function updateRipples() {
 
 function drawRipples() {
   ctx.save();
+  const ripplesFade = cloudDissolveProgress < DROPS_RIPPLES_FADE_START
+    ? 1
+    : 1 - (cloudDissolveProgress - DROPS_RIPPLES_FADE_START) / (1 - DROPS_RIPPLES_FADE_START);
   ctx.strokeStyle = 'rgba(255, 255, 255, 1)';
   ctx.lineWidth = 1.2;
   for (const r of RIPPLES) {
     if (!r.active) continue;
-    ctx.globalAlpha = r.opacity;
+    ctx.globalAlpha = r.opacity * ripplesFade;
     ctx.beginPath();
     ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -445,14 +451,17 @@ function updateRaindrops() {
 }
 
 function drawRain() {
-  if (!rainActive) return;
+  if (raindrops.length === 0) return;
   ctx.save();
+  const dropsFade = cloudDissolveProgress < DROPS_RIPPLES_FADE_START
+    ? 1
+    : 1 - (cloudDissolveProgress - DROPS_RIPPLES_FADE_START) / (1 - DROPS_RIPPLES_FADE_START);
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = RAIN_LINE_WIDTH;
   ctx.lineCap = 'round';
   for (const d of raindrops) {
     if (!d.active) continue;
-    ctx.globalAlpha = d.opacity;
+    ctx.globalAlpha = d.opacity * dropsFade;
     const len = RAIN_LINE_LENGTH;
     const dx = (d.vx / d.vy) * len;
     const dy = len;
@@ -619,16 +628,13 @@ const STEAM_TRAIL_ALPHAS = [0.22, 0.11, 0.04];
 const STEAM_TRAIL_OFFSET = 4;
 const STEAM_FADE_AGE = 150;
 
-// Particles in upper zone fade out first (before cloud), during rain
-const PARTICLE_DISSOLVE_AT = 0.45; // when cloudDissolveProgress reaches this, upper-zone particles are gone
-
+// Particles disappear first (by PARTICLE_DISSOLVE_END), then cloud, then drops/ripples
 function drawHeatParticles() {
   ctx.save();
-  const upperZoneParticleFade = 1 - Math.min(1, cloudDissolveProgress / PARTICLE_DISSOLVE_AT);
+  const particleFade = 1 - Math.min(1, cloudDissolveProgress / PARTICLE_DISSOLVE_END);
   for (const p of particles) {
     if (!p.active) continue;
-    const inUpper = isInUpperZone(p.y);
-    const dissolveFade = inUpper ? upperZoneParticleFade : 1;
+    const dissolveFade = particleFade;
     if (dissolveFade <= 0) continue;
     const trailFade = 1 - Math.min(1, p.age / STEAM_FADE_AGE);
     ctx.fillStyle = 'rgba(255, 255, 255, 1)';
@@ -648,10 +654,8 @@ function drawHeatParticles() {
   ctx.fillStyle = '#00e5ff';
   for (const p of particles) {
     if (!p.active) continue;
-    const inUpper = isInUpperZone(p.y);
-    const dissolveFade = inUpper ? upperZoneParticleFade : 1;
-    if (dissolveFade <= 0) continue;
-    ctx.globalAlpha = dissolveFade;
+    if (particleFade <= 0) continue;
+    ctx.globalAlpha = particleFade;
     ctx.beginPath();
     ctx.arc(p.x, p.y, PARTICLE_RADIUS, 0, Math.PI * 2);
     ctx.fill();
@@ -672,7 +676,10 @@ function drawCloud() {
   let density = cloudState === 'full'
     ? CLOUD_DENSITY_FULL
     : CLOUD_DENSITY_FORMING + 0.2 * Math.min(1, upperParticles.length / CLOUD_FORMING_THRESHOLD);
-  density *= 1 - cloudDissolveProgress;
+  const cloudFade = cloudDissolveProgress <= PARTICLE_DISSOLVE_END
+    ? 1
+    : 1 - (cloudDissolveProgress - PARTICLE_DISSOLVE_END) / (1 - PARTICLE_DISSOLVE_END);
+  density *= cloudFade;
   if (density <= 0.002) return;
   ctx.save();
   ctx.fillStyle = CLOUD_COLOR;
@@ -768,10 +775,12 @@ function update() {
   }
   updateRipples();
   updateWaterPhase();
-  if (rainActive || raindrops.length > 0) {
+  if (rainHadStarted && cloudDissolveProgress < 1) {
     cloudDissolveProgress = Math.min(1, cloudDissolveProgress + 1 / CLOUD_DISSOLVE_DURATION_FRAMES);
   }
-  if (rainHadStarted && !rainActive && raindrops.length === 0) resetCycle();
+  if (rainHadStarted && !rainActive && raindrops.length === 0 && cloudDissolveProgress >= 1) {
+    resetCycle();
+  }
 }
 
 function resetCycle() {
