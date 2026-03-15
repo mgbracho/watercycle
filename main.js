@@ -21,15 +21,26 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// Web Audio API — resume on first user interaction (browser autoplay policy)
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// Web Audio API — create and resume on first user interaction (required on mobile / iOS)
+let audioCtx = null;
 
-function resumeAudioOnFirstInteraction() {
+function initAudioOnFirstInteraction() {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return;
+  }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  audioCtx = new Ctx();
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-document.addEventListener('mousedown', resumeAudioOnFirstInteraction, { once: true });
-document.addEventListener('touchstart', resumeAudioOnFirstInteraction, { once: true });
+function getAudioContext() {
+  return audioCtx;
+}
+
+document.addEventListener('mousedown', initAudioOnFirstInteraction, { once: true, capture: true });
+document.addEventListener('touchstart', initAudioOnFirstInteraction, { once: true, capture: true });
 
 let dragSoundSource = null;
 let dragSoundPlaying = false;
@@ -38,32 +49,37 @@ let dragSoundGain = null;
 let dragSoundFilter = null;
 
 function getDragSoundNodes() {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
   if (!dragSoundNoiseBuffer) {
     const duration = 0.12;
-    const numSamples = audioCtx.sampleRate * duration;
-    const buffer = audioCtx.createBuffer(1, numSamples, audioCtx.sampleRate);
+    const numSamples = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, numSamples, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < numSamples; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
     dragSoundNoiseBuffer = buffer;
   }
   if (!dragSoundFilter) {
-    dragSoundFilter = audioCtx.createBiquadFilter();
+    dragSoundFilter = ctx.createBiquadFilter();
     dragSoundFilter.type = 'bandpass';
     dragSoundFilter.frequency.value = 3200;
     dragSoundFilter.Q.value = 0.6;
   }
   if (!dragSoundGain) {
-    dragSoundGain = audioCtx.createGain();
+    dragSoundGain = ctx.createGain();
     dragSoundGain.gain.value = 0.06;
-    dragSoundGain.connect(audioCtx.destination);
+    dragSoundGain.connect(ctx.destination);
   }
   return { buffer: dragSoundNoiseBuffer, filter: dragSoundFilter, gain: dragSoundGain };
 }
 
 function startDragSound() {
-  if (dragSoundPlaying || audioCtx.state !== 'running') return;
-  const { buffer, filter, gain } = getDragSoundNodes();
-  const source = audioCtx.createBufferSource();
+  const ctx = getAudioContext();
+  if (dragSoundPlaying || !ctx || ctx.state !== 'running') return;
+  const nodes = getDragSoundNodes();
+  if (!nodes) return;
+  const { buffer, filter, gain } = nodes;
+  const source = ctx.createBufferSource();
   source.buffer = buffer;
   source.loop = true;
   source.connect(filter);
@@ -89,32 +105,37 @@ let whooshFilter = null;
 let whooshGain = null;
 
 function getWhooshSoundNodes() {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
   if (!whooshNoiseBuffer) {
     const duration = 0.25;
-    const numSamples = audioCtx.sampleRate * duration;
-    const buffer = audioCtx.createBuffer(1, numSamples, audioCtx.sampleRate);
+    const numSamples = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, numSamples, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < numSamples; i++) data[i] = (Math.random() * 2 - 1) * 0.2;
     whooshNoiseBuffer = buffer;
   }
   if (!whooshFilter) {
-    whooshFilter = audioCtx.createBiquadFilter();
+    whooshFilter = ctx.createBiquadFilter();
     whooshFilter.type = 'highpass';
     whooshFilter.frequency.value = 900;
     whooshFilter.Q.value = 0.5;
   }
   if (!whooshGain) {
-    whooshGain = audioCtx.createGain();
+    whooshGain = ctx.createGain();
     whooshGain.gain.value = 0.025;
-    whooshGain.connect(audioCtx.destination);
+    whooshGain.connect(ctx.destination);
   }
   return { buffer: whooshNoiseBuffer, filter: whooshFilter, gain: whooshGain };
 }
 
 function startWhooshSound() {
-  if (whooshSoundPlaying || audioCtx.state !== 'running') return;
-  const { buffer, filter, gain } = getWhooshSoundNodes();
-  const source = audioCtx.createBufferSource();
+  const ctx = getAudioContext();
+  if (whooshSoundPlaying || !ctx || ctx.state !== 'running') return;
+  const nodes = getWhooshSoundNodes();
+  if (!nodes) return;
+  const { buffer, filter, gain } = nodes;
+  const source = ctx.createBufferSource();
   source.buffer = buffer;
   source.loop = true;
   source.connect(filter);
@@ -179,14 +200,15 @@ const CLOUD_RUMBLE_FREQ = 72;
 const CLOUD_RUMBLE_GAIN_MAX = 0.04;
 
 function startCloudRumble() {
-  if (cloudRumbleOsc || audioCtx.state !== 'running') return;
-  cloudRumbleOsc = audioCtx.createOscillator();
+  const ctx = getAudioContext();
+  if (cloudRumbleOsc || !ctx || ctx.state !== 'running') return;
+  cloudRumbleOsc = ctx.createOscillator();
   cloudRumbleOsc.type = 'sine';
   cloudRumbleOsc.frequency.value = CLOUD_RUMBLE_FREQ;
-  cloudRumbleGain = audioCtx.createGain();
+  cloudRumbleGain = ctx.createGain();
   cloudRumbleGain.gain.value = 0;
   cloudRumbleOsc.connect(cloudRumbleGain);
-  cloudRumbleGain.connect(audioCtx.destination);
+  cloudRumbleGain.connect(ctx.destination);
   cloudRumbleOsc.start(0);
 }
 
@@ -244,32 +266,37 @@ const RAIN_GAIN_MAX = 0.08;
 const RAIN_DROPS_FOR_MAX = 100;
 
 function getRainSoundNodes() {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
   if (!rainSoundBuffer) {
     const duration = 0.4;
-    const numSamples = audioCtx.sampleRate * duration;
-    const buffer = audioCtx.createBuffer(1, numSamples, audioCtx.sampleRate);
+    const numSamples = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, numSamples, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < numSamples; i++) data[i] = (Math.random() * 2 - 1) * 0.25;
     rainSoundBuffer = buffer;
   }
   if (!rainSoundFilter) {
-    rainSoundFilter = audioCtx.createBiquadFilter();
+    rainSoundFilter = ctx.createBiquadFilter();
     rainSoundFilter.type = 'bandpass';
     rainSoundFilter.frequency.value = 2800;
     rainSoundFilter.Q.value = 0.4;
   }
   if (!rainSoundGain) {
-    rainSoundGain = audioCtx.createGain();
+    rainSoundGain = ctx.createGain();
     rainSoundGain.gain.value = RAIN_GAIN_MIN;
-    rainSoundGain.connect(audioCtx.destination);
+    rainSoundGain.connect(ctx.destination);
   }
   return { buffer: rainSoundBuffer, filter: rainSoundFilter, gain: rainSoundGain };
 }
 
 function startRainSound() {
-  if (rainSoundPlaying || audioCtx.state !== 'running') return;
-  const { buffer, filter, gain } = getRainSoundNodes();
-  const source = audioCtx.createBufferSource();
+  const ctx = getAudioContext();
+  if (rainSoundPlaying || !ctx || ctx.state !== 'running') return;
+  const nodes = getRainSoundNodes();
+  if (!nodes) return;
+  const { buffer, filter, gain } = nodes;
+  const source = ctx.createBufferSource();
   source.buffer = buffer;
   source.loop = true;
   source.connect(filter);
@@ -381,19 +408,20 @@ const DRIP_DURATION = 0.06;
 const DRIP_GAIN = 0.04;
 
 function playDripSound() {
-  if (dripsPlayedThisFrame >= MAX_DRIPS_PER_FRAME || audioCtx.state !== 'running') return;
+  const ctx = getAudioContext();
+  if (dripsPlayedThisFrame >= MAX_DRIPS_PER_FRAME || !ctx || ctx.state !== 'running') return;
   dripsPlayedThisFrame++;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
   const freq = DRIP_BASE_FREQ + (Math.random() * 2 - 1) * DRIP_FREQ_VARIANCE;
   osc.type = 'sine';
   osc.frequency.value = freq;
-  gain.gain.setValueAtTime(DRIP_GAIN, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + DRIP_DURATION);
+  gain.gain.setValueAtTime(DRIP_GAIN, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + DRIP_DURATION);
   osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start(audioCtx.currentTime);
-  osc.stop(audioCtx.currentTime + DRIP_DURATION);
+  gain.connect(ctx.destination);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + DRIP_DURATION);
 }
 
 function updateRaindrops() {
@@ -452,6 +480,7 @@ function getCanvasCoords(clientX, clientY) {
 }
 
 canvas.addEventListener('mousedown', (e) => {
+  initAudioOnFirstInteraction(); // create/resume AudioContext on first click (desktop)
   const { x, y } = getCanvasCoords(e.clientX, e.clientY);
   mouseX = x;
   mouseY = y;
@@ -478,6 +507,7 @@ let touchX = 0;
 let touchY = 0;
 
 canvas.addEventListener('touchstart', (e) => {
+  initAudioOnFirstInteraction(); // create/resume AudioContext on first touch (required for mobile)
   e.preventDefault(); // Prevent scroll so drag acts as heat source only
   if (e.touches.length > 0) {
     const { x, y } = getCanvasCoords(e.touches[0].clientX, e.touches[0].clientY);
