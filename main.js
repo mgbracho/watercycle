@@ -594,7 +594,8 @@ function createParticle(x, y, vx, vy) {
   };
 }
 
-const EMIT_RATE = 1; // particles per frame — calm, gradual buildup
+const EMIT_EVERY_N_FRAMES = 2; // 1 particle every 2 frames
+let emitFrameCounter = 0;
 const EMIT_VY_MIN = -3.8;
 const EMIT_VY_MAX = -2.4;
 const EMIT_VX_SPREAD = 0.6;
@@ -602,21 +603,20 @@ const EMIT_VX_SPREAD = 0.6;
 function emitHeatParticles() {
   const { active, x, y } = getHeatSource();
   if (!active) return;
+  emitFrameCounter++;
+  if (emitFrameCounter % EMIT_EVERY_N_FRAMES !== 0) return;
   let activeCount = particles.filter(p => p.active).length;
   if (activeCount >= MAX_PARTICLES) {
     const activeList = particles.filter(p => p.active);
     activeList.sort((a, b) => a.age - b.age);
-    const toFree = Math.min(EMIT_RATE + 2, activeList.length);
-    for (let i = 0; i < toFree; i++) activeList[i].active = false;
+    const toFree = 3;
+    for (let i = 0; i < toFree && i < activeList.length; i++) activeList[i].active = false;
     activeCount -= toFree;
   }
-  for (let i = 0; i < EMIT_RATE; i++) {
-    if (activeCount >= MAX_PARTICLES) break;
-    const vy = EMIT_VY_MIN + Math.random() * (EMIT_VY_MAX - EMIT_VY_MIN);
-    const vx = (Math.random() - 0.5) * 2 * EMIT_VX_SPREAD;
-    particles.push(createParticle(x, y, vx, vy));
-    activeCount++;
-  }
+  if (activeCount >= MAX_PARTICLES) return;
+  const vy = EMIT_VY_MIN + Math.random() * (EMIT_VY_MAX - EMIT_VY_MIN);
+  const vx = (Math.random() - 0.5) * 2 * EMIT_VX_SPREAD;
+  particles.push(createParticle(x, y, vx, vy));
 }
 
 const COOLING_DRAG = 0.993;   // gentle slowdown so particles can reach cloud zone (was 0.987, too strong)
